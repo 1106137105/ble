@@ -27,7 +27,6 @@ const {
   setEddystoneNamespace,
   IBEACON,
   EDDYSTONE,
-  // Configurations
   scanMode,
   scanPeriod,
   activityCheckConfiguration,
@@ -36,6 +35,10 @@ const {
   monitoringSyncInterval,
 } = Kontakt;
 
+
+
+/////////beacon程式碼////////////////
+//區域判斷式
 const region1 = {
   identifier: 'USBeacon',
   uuid: '1D5F5874-9406-4D00-9E6F-D519D307D986',
@@ -60,29 +63,18 @@ export default class Test extends Component {
   };
 
   componentDidMount() {
-    // Initialization, configuration and adding of beacon regions
     connect(
       'MY_KONTAKTIO_API_KEY',
       [IBEACON, EDDYSTONE],
     )
-      // .then(() => configure({
-      //   scanMode: scanMode.BALANCED,
-      //   scanPeriod: scanPeriod.create({
-      //     activePeriod: 6000,
-      //     passivePeriod: 20000,
-      //   }),
-      //   activityCheckConfiguration: activityCheckConfiguration.DEFAULT,
-      //   forceScanConfiguration: forceScanConfiguration.MINIMAL,
-      //   monitoringEnabled: monitoringEnabled.TRUE,
-      //   monitoringSyncInterval: monitoringSyncInterval.DEFAULT,
-      // }))
       .then(() => setBeaconRegions([region1, region2]))
       .then(() => setEddystoneNamespace())
       .then(() => startScanning())
       .catch(error => console.log('error', error));
 
-    // Beacon listeners
+    // beacon監聽
     DeviceEventEmitter.addListener(
+      //掃到
       'beaconDidAppear',
       ({ beacon: newBeacon, region }) => {
         console.log('beaconDidAppear', newBeacon, region);
@@ -92,34 +84,15 @@ export default class Test extends Component {
         });
       }
     );
-    // DeviceEventEmitter.addListener(
-    //   'beaconDidDisappear',
-    //   ({ beacon: lostBeacon, region }) => {
-    //     console.log('beaconDidDisappear', lostBeacon, region);
-
-    //     const { beacons } = this.state;
-    //     const index = beacons.findIndex(beacon =>
-    //       this._isIdenticalBeacon(lostBeacon, beacon)
-    //     );
-    //     this.setState({
-    //       beacons: beacons.reduce((result, val, ind) => {
-    //         // don't add disappeared beacon to array
-    //         if (ind === index) return result;
-    //         // add all other beacons to array
-    //         else {
-    //           result.push(val);
-    //           return result;
-    //         }
-    //       }, [])
-    //     });
-    //   }
-    // );
     DeviceEventEmitter.addListener(
+      //beacon參數變動
       'beaconsDidUpdate',
       ({ beacons: updatedBeacons, region }) => {
         console.log('beaconsDidUpdate', updatedBeacons, region);
+        ////rssi轉換成距離(公尺)////
         var power = (Math.abs(updatedBeacons[0].rssi) - 60) / (10 * 3.3);
         console.log('距離為: '+ Math.pow(10, power) + '公尺')
+        //////////////////////////
         const { beacons } = this.state;
         updatedBeacons.forEach(updatedBeacon => {
           const index = beacons.findIndex(beacon =>
@@ -136,10 +109,11 @@ export default class Test extends Component {
       }
     );
 
-    // Region listeners
+    // 區域條件監聽 listeners
     DeviceEventEmitter.addListener(
       'regionDidEnter',
       ({ region }) => {
+        //如果進入的區域的minor=beacon_1的minor
         if(region.minor === region1.minor){
           Alert.alert(
             '你好阿1',
@@ -147,7 +121,7 @@ export default class Test extends Component {
             [{ text: '好喔1', onPress: () => console.log('OK_1 Pressed') }],
             { cancelable: false },
           );
-        }else if(region.minor === region2.minor){
+        }else if(region.minor === region2.minor){ //如果進入的區域的minor=beacon_2的minor
           Alert.alert(
             '你好阿2',
             '你進到beacon1_222的區域了',
@@ -161,6 +135,7 @@ export default class Test extends Component {
     DeviceEventEmitter.addListener(
       'regionDidExit',
       ({ region }) => {
+         //如果離開的區域的minor=beacon_1的minor
         if(region.minor === region1.minor){
           Alert.alert(
             '掰掰啦1',
@@ -168,7 +143,7 @@ export default class Test extends Component {
             [{ text: '好欸1', onPress: () => console.log('bye_1 Pressed') }],
             { cancelable: false },
           );
-        }else if(region.minor === region2.minor){
+        }else if(region.minor === region2.minor){   //如果離開的區域的minor=beacon_1的minor
           Alert.alert(
             '掰掰啦2',
             '你離開beacon1_222的區域了',
@@ -178,91 +153,12 @@ export default class Test extends Component {
         }
       }
     );
-
-    // Beacon monitoring listener
-    DeviceEventEmitter.addListener(
-      'monitoringCycle',
-      ({ status }) => {
-        console.log('monitoringCycle', status);
-      }
-    );
-
-    /*
-     * Eddystone
-     */
-
-    DeviceEventEmitter.addListener(
-      'eddystoneDidAppear',
-      ({ eddystone, namespace }) => {
-        console.log('eddystoneDidAppear', eddystone, namespace);
-
-        this.setState({
-          eddystones: this.state.eddystones.concat(eddystone)
-        });
-      }
-    );
-
-    DeviceEventEmitter.addListener(
-      'namespaceDidEnter',
-      ({ status }) => {
-        console.log('namespaceDidEnter', status);
-      }
-    );
-
-    DeviceEventEmitter.addListener(
-      'namespaceDidExit',
-      ({ status }) => {
-        console.log('namespaceDidExit', status);
-      }
-    );
-
   }
-
   componentWillUnmount() {
     // Disconnect beaconManager and set to it to null
     disconnect();
     DeviceEventEmitter.removeAllListeners();
   }
-
-  _startScanning = () => {
-    startScanning()
-      .then(() => this.setState({ scanning: true, statusText: null }))
-      .then(() => console.log('started scanning'))
-      .catch(error => console.log('[startScanning]', error));
-  };
-  _stopScanning = () => {
-    stopScanning()
-      .then(() => this.setState({ scanning: false, beacons: [], statusText: null }))
-      .then(() => console.log('stopped scanning'))
-      .catch(error => console.log('[stopScanning]', error));
-  };
-  _restartScanning = () => {
-    restartScanning()
-      .then(() => this.setState({ scanning: true, beacons: [], statusText: null }))
-      .then(() => console.log('restarted scanning'))
-      .catch(error => console.log('[restartScanning]', error));
-  };
-  _isScanning = () => {
-    isScanning()
-      .then(result => {
-        this.setState({ statusText: `Device is currently ${result ? '' : 'NOT '}scanning.` });
-        console.log('Is device scanning?', result);
-      })
-      .catch(error => console.log('[isScanning]', error));
-  };
-  _isConnected = () => {
-    isConnected()
-      .then(result => {
-        this.setState({ statusText: `Device is ${result ? '' : 'NOT '}ready to scan beacons.` });
-        console.log('Is device connected?', result);
-      })
-      .catch(error => console.log('[isConnected]', error));
-  };
-  _getBeaconRegions = () => {
-    getBeaconRegions()
-      .then(regions => console.log('regions', regions))
-      .catch(error => console.log('[getBeaconRegions]', error));
-  };
 
   /**
    * Helper function used to identify equal beacons
@@ -272,47 +168,6 @@ export default class Test extends Component {
     (b1.uuid === b2.uuid) &&
     (b1.major === b2.major) &&
     (b1.minor === b2.minor)
-  );
-
-  _renderBeacons = () => {
-    const colors = ['#F7C376', '#EFF7B7', '#F4CDED', '#A2C8F9', '#AAF7AF'];
-
-    return this.state.beacons.sort((a, b) => a.accuracy - b.accuracy).map((beacon, ind) => (
-      <View key={ind} style={[styles.beacon, { backgroundColor: colors[beacon.minor - 1] }]}>
-        <Text style={{ fontWeight: 'bold' }}>{beacon.uniqueId}</Text>
-        <Text>Major: {beacon.major}, Minor: {beacon.minor}</Text>
-        <Text>Distance: {beacon.accuracy}, Proximity: {beacon.proximity}</Text>
-        <Text>Battery Power: {beacon.batteryPower}, TxPower: {beacon.txPower}</Text>
-        <Text>FirmwareVersion: {beacon.firmwareVersion}, Address: {beacon.uniqueId}</Text>
-      </View>
-    ), this);
-  };
-
-  _renderEmpty = () => {
-    const { scanning, beacons } = this.state;
-    let text;
-    if (!scanning) text = "Start scanning to listen for beacon signals!";
-    if (scanning && !beacons.length) text = "No beacons detected yet...";
-    return (
-      <View style={styles.textContainer}>
-        <Text style={styles.text}>{text}</Text>
-      </View>
-    );
-  };
-
-  _renderStatusText = () => {
-    const { statusText } = this.state;
-    return statusText ? (
-      <View style={styles.textContainer}>
-        <Text style={[styles.text, { color: 'red' }]}>{statusText}</Text>
-      </View>
-    ) : null;
-  };
-
-  _renderButton = (text, onPress, backgroundColor) => (
-    <TouchableOpacity style={[styles.button, { backgroundColor }]} onPress={onPress}>
-      <Text>{text}</Text>
-    </TouchableOpacity>
   );
 
   render() {
@@ -331,7 +186,7 @@ export default class Test extends Component {
     );
   }
 }
-
+//////////////beacon程式碼/////////////
 
 
 const Tab = createBottomTabNavigator();
